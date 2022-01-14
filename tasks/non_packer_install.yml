@@ -1,0 +1,63 @@
+- name: Copying TLS certificates
+  ansible.builtin.copy:
+    src: '{{ item }}'
+    dest: '{{ consul_tls_directory }}/{{ item | basename }}'
+    owner: '{{ consul_user }}'
+    group: '{{ consul_group }}'
+    mode: '0400'
+  with_items:
+    - '{{ consul_tls_ca_file | default([]) }}'
+    - '{{ consul_tls_cert_file }}'
+    - '{{ consul_tls_key_file }}'
+  when:
+    - consul_tls_cert_file is defined
+    - consul_tls_key_file is defined
+  notify:
+    - Restart Consul
+
+- name: Copying Consul license file
+  ansible.builtin.copy:
+    src: '{{ consul_license_file }}'
+    dest: '{{ consul_license_directory }}/{{ consul_license_file | basename }}'
+    owner: '{{ consul_user }}'
+    group: '{{ consul_group }}'
+    mode: '0400'
+  when:
+    - consul_license_file is defined
+
+- name: Templating out Consul configuration
+  ansible.builtin.template:
+    src: consul.hcl.j2
+    dest: '{{ consul_config_file }}'
+    owner: '{{ consul_user }}'
+    group: '{{ consul_group }}'
+    mode: '0660'
+  notify:
+    - Restart Consul
+
+- name: Templating out consul server configuration
+  template:
+    src: server.hcl.j2
+    dest: '{{ consul_server_file }}'
+    owner: '{{ consul_user }}'
+    group: '{{ consul_group }}'
+    mode: '0640'
+  when: consul_server
+  notify:
+    - Restart Consul
+
+- name: Templating out systemd script
+  ansible.builtin.template:
+    src: consul.systemd.j2
+    dest: /lib/systemd/system/consul.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload Consul daemon
+
+- name: Starting and enabling Consul
+  ansible.builtin.systemd:
+    name: consul
+    enabled: true
+    state: started

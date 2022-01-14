@@ -7,6 +7,7 @@ ConditionFileNotEmpty={{ consul_config_file }}
 
 [Service]
 Type=notify
+EnvironmentFile=/etc/consul.d/consul.env
 User={{ consul_user }}
 Group={{ consul_group }}
 ExecStart={{ consul_install_directory }}/consul agent -config-dir={{ consul_home_directory }}

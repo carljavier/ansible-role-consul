@@ -3,14 +3,23 @@ data_dir   = "{{ consul_data_directory }}"
 node_name  = "{{ ansible_hostname }}"
 log_level  = "{{ consul_log_level }}"
 
+{% if consul_license_file is defined %}
+license_path = "{{ consul_license_directory }}/{{ consul_license_file | basename }}"
+{% endif %}
+
 {% if consul_gossip_key is defined %}
 encrypt = "{{ consul_gossip_key }}"
 {% endif %}
 
-{% if consul_acl_enabled %}
+{% if consul_connect %}
+connect {
+  enabled = true
+}
+{% endif %}
+
 acl {
   enabled        = true
-  default_policy = "deny"
+  default_policy = "{{ consul_acl_default_policy }}"
   down_policy    = "extend-cache"
 {% if consul_acl_agent_token is defined %}
   tokens {
@@ -18,7 +27,6 @@ acl {
   }
 {% endif %}
 }
-{% endif %}
 
 {% if consul_tls_enabled %}
 ca_file                = "{{ consul_tls_directory }}/{{ consul_tls_ca_file | basename }}"
@@ -34,6 +42,16 @@ tls_cipher_suites = "{{ consul_tls_cipher_suites }}"
 {% endif %}
 tls_min_version = "{{ consul_tls_min_version }}"
 
+{% if auto_encrypt %}
+auto_encrypt {
+  {% if consul_server %}
+  allow_tls = true
+  {% else %}
+  tls = true
+  {% endif %}
+}
+{% endif %}
+
 ports {
   dns      = {{ consul_port_dns }}
   http     = {{ consul_port_http }}
@@ -44,11 +62,15 @@ ports {
   server   = {{ consul_port_server }}
 }
 
-{% if provider == 'gce' %}
+{% if cloud.provider == 'gce' %}
 retry_join = ["provider=gce tag_value={{ consul_cloud_tag }}"]
-{% elif provider == 'no_cloud'%}
+{% elif cloud.provider == 'azure' %}
+retry_join = ["provider=azure subscription_id={{ cloud.azure_subscription_id }} resource_group={{ cloud.azure_resource_group }} vm_scale_set={{ cloud.azure_vm_scale_set }}"]
+{% elif cloud.provider == 'aws' %}
+retry_join = ["provider=aws tag_key={{ cloud.aws_tag_key }} tag_value={{ cloud.aws_tag_value }} region={{ cloud.region }}"]
+{% elif cloud.provider == 'no_cloud' %}
 retry_join = [
-{% for consul_server in groups['consul'] %}
+{% for consul_server in groups['consul_primary'] %}
   "{{ consul_server }}"{% if not loop.last %},{% endif %}{{''}}
 {% endfor %}
 ]
@@ -60,3 +82,7 @@ advertise_addr = "{{ consul_advertise_addr }}"
 performance {
   raft_multiplier = {{ consul_raft_multiplier }}
 }
+
+{% if consul_non_voting_server %}
+non_voting_server = true
+{% endif %}
