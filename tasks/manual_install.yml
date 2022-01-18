@@ -17,113 +17,91 @@
     update_cache: yes
   when: ansible_pkg_mgr == 'apt'
 
-- name: creating consul group
-  group:
-    name: '{{ consul_group }}'
-    system: yes
-  when: consul_create_account
-  
-- name: creating consul user
-  user:
-    name: '{{ consul_user }}'
-    home: '{{ consul_home_directory }}'
-    group: '{{ consul_group }}'
-    shell: /sbin/nologin
-    system: yes
-  when: consul_create_account
 
-- name: creating consul directories
-  file:
-    state: directory
-    path: '{{ item }}'
-    owner: '{{ consul_user }}'
-    group: '{{ consul_group }}'
-    mode: '0750'
-  with_items:
-  - '{{ consul_home_directory }}'
-  - '{{ consul_data_directory }}'
-  - '{{ consul_install_directory }}'
-
-- name: installing consul binary from remote
+- name: Installing Consul binary from remote
   unarchive:
     src: '{{ consul_download }}'
     dest: '{{ consul_install_directory }}'
     owner: '{{ consul_user }}'
     group: '{{ consul_group }}'
     remote_src: yes
-    mode: '0770'
+    mode: '0755'
   notify:
-    - restart consul
-  when: not consul_local_binary
+    - Restart Consul
+  when:  consul_local_binary_location is not defined
 
-- name: installing consul binary from local
+- name: Installing Consul binary from local source
   copy:
     src: '{{ consul_local_binary_location }}'
     dest: '{{ consul_install_directory }}/{{ consul_local_binary_location | basename }}'
     owner: '{{ consul_user }}'
     group: '{{ consul_group }}'
-    mode: '0770'
+    mode: '0755'
   notify:
-    - restart consul
-  when: consul_local_binary
+    - Restart Consul
+  when: consul_local_binary_location is defined
 
-- name: create TLS directory
-  file:
-    state: directory
-    path: '{{ consul_tls_directory }}'
-    owner: '{{ consul_user }}'
-    group: '{{ consul_group }}'
-    mode: '0750'
-  when: consul_tls_enabled
 
-- name: copying over TLS certificates
-  copy:
+- name: Copying TLS certificates
+  ansible.builtin.copy:
     src: '{{ item }}'
     dest: '{{ consul_tls_directory }}/{{ item | basename }}'
     owner: '{{ consul_user }}'
     group: '{{ consul_group }}'
-    mode: '0640'
+    mode: '0400'
   with_items:
-    - '{{ consul_tls_ca_file }}'
+    - '{{ consul_tls_ca_file | default([]) }}'
     - '{{ consul_tls_cert_file }}'
     - '{{ consul_tls_key_file }}'
-  when: consul_tls_enabled
+  when:
+    - consul_tls_cert_file is defined
+    - consul_tls_key_file is defined
   notify:
-    - restart consul
+    - Restart Consul
 
-- name: templating out consul configuration
-  template:
+- name: Copying Consul license file
+  ansible.builtin.copy:
+    src: '{{ consul_license_file }}'
+    dest: '{{ consul_license_directory }}/{{ consul_license_file | basename }}'
+    owner: '{{ consul_user }}'
+    group: '{{ consul_group }}'
+    mode: '0400'
+  when:
+    - consul_license_file is defined
+
+- name: Templating out Consul configuration
+  ansible.builtin.template:
     src: consul.hcl.j2
     dest: '{{ consul_config_file }}'
     owner: '{{ consul_user }}'
     group: '{{ consul_group }}'
-    mode: '0640'
+    mode: '0660'
   notify:
-    - restart consul
+    - Restart Consul
 
-- name: templating out consul server configuration
+- name: Templating out consul server configuration
   template:
     src: server.hcl.j2
     dest: '{{ consul_server_file }}'
     owner: '{{ consul_user }}'
     group: '{{ consul_group }}'
     mode: '0640'
-  when: "'consul' in group_names"
+  when: consul_server
   notify:
-    - restart consul
+    - Restart Consul
 
-- name: templating out systemd script
-  template:
+- name: Templating out systemd script
+  ansible.builtin.template:
     src: consul.systemd.j2
-    dest: /etc/systemd/system/consul.service
+    dest: /lib/systemd/system/consul.service
     owner: root
     group: root
-    mode: '0640'
+    mode: '0644'
   notify:
-    - reload consul daemon
+    - Reload Consul daemon
 
 - name: starting and enabling consul
-  systemd:
+  ansible.builtin.systemd:
     name: consul
     enabled: yes
     state: started

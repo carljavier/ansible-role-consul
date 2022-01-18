@@ -1,11 +1,4 @@
 ---
-- name: installing consul
-  include: manual_install.yml
-  when: not use_hashicorp_repository
-
-# - name: bootstrapping consul
-#   include: consul_bootstrap.yml
-#   when: consul_run_bootstrap
 
 - name: Installing Consul via the HashiCorp repository
   include: repository_install.yml
@@ -14,10 +7,15 @@
 - name: Laying out OS level configurations
   include: os_level_configuration.yml
 
-# - name: Installing Consul via direct archive
-#   include: manual_install.yml
-#   when: not use_hashicorp_repository
+- name: installing consul
+  include: manual_install.yml
+  when: not use_hashicorp_repository
 
-- name: Laying out remaining items if not a packer image
-  include: non_packer_install.yml
-  when: not packer_build
+
+# - name: Laying out remaining items if not a packer image
+#   include: non_packer_install.yml
+#   when: not packer_build
+
+# - name: bootstrapping consul
+#   include: consul_bootstrap.yml
+#   when: consul_run_bootstrap

@@ -23,13 +23,12 @@ consul_architecture_map:
   armv7l: arm
   aarch64: arm64
 
-consul_version: '1.9.5'
+consul_version: '1.11.2'
 consul_os: '{{ ansible_system|lower }}'
 consul_architecture: '{{ consul_architecture_map[ansible_architecture] }}'
 consul_archive: 'consul_{{ consul_version }}_{{ consul_os }}_{{ consul_architecture }}.zip'
 consul_download: 'https://releases.hashicorp.com/consul/{{ consul_version }}/{{ consul_archive }}'
 consul_local_binary: false
-consul_local_binary_location: 'binary/consul'
 consul_license_directory: '{{ consul_data_directory }}/license'
 
 
