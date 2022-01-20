@@ -34,11 +34,14 @@ acl {
 
 {% if consul_tls_enabled %}
 ca_file                = "{{ consul_tls_directory }}/{{ consul_tls_ca_file | basename }}"
+verify_outgoing        = {{ consul_tls_verify_outgoing | lower }}
+{% if consul_server %}
 cert_file              = "{{ consul_tls_directory }}/{{ consul_tls_cert_file | basename }}"
 key_file               = "{{ consul_tls_directory }}/{{ consul_tls_key_file | basename }}"
 verify_incoming        = {{ consul_tls_verify_incoming | lower }}
-verify_outgoing        = {{ consul_tls_verify_outgoing | lower }}
 verify_server_hostname = {{ consul_tls_verify_server_hostname | lower }}
+verify_incoming_rpc    = {{ consul_tls_verify_server_incoming_rpc | lower }}
+{% endif %}
 {% endif %}
 
 {% if consul_tls_cipher_suites is defined %}
@@ -86,6 +89,10 @@ advertise_addr = "{{ consul_advertise_addr }}"
 performance {
   raft_multiplier = {{ consul_raft_multiplier }}
 }
+
+{% if consul_domain is defined %}
+domain = "{{ consul_domain }}"
+{% endif %}
 
 {% if consul_non_voting_server %}
 non_voting_server = true
